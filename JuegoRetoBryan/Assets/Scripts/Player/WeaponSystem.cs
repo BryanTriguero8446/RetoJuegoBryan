@@ -27,9 +27,6 @@ public class WeaponSystem : MonoBehaviour
     [Tooltip("Si esta marcado, la direccion del disparo se aplana en Y (100% horizontal).")]
     [SerializeField] private bool       forceHorizontal = true;
 
-    [Header("Debug")]
-    [SerializeField] private bool       drawDebugRay = false;
-
     [Header("VFX (opcional)")]
     [SerializeField] private GameObject muzzleFlashPrefab;
 
@@ -111,12 +108,6 @@ public class WeaponSystem : MonoBehaviour
         }
 
         Vector3 origin = GetMuzzlePosition();
-
-        if (drawDebugRay)
-        {
-            Debug.DrawRay(origin, dir * 10f, Color.green, 1.5f);
-            Debug.Log($"[WeaponSystem] Disparo dir={dir} (y={dir.y:F3} debe ser 0)");
-        }
 
         GameObject bullet = BulletFactory.Create(origin, dir, damage, bulletLife);
 

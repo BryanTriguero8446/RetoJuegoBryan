@@ -50,17 +50,18 @@ public static class BulletFactory
     /// </summary>
     public static void SpawnHitVFX(Vector3 position, Vector3 normal)
     {
-        // Si la normal viene en cero, usar arriba como fallback
         if (normal == Vector3.zero)
             normal = Vector3.up;
 
+        // CLAVE: crear el GameObject DESACTIVADO para que el ParticleSystem
+        // no arranque automaticamente al hacer AddComponent. Asi podemos
+        // configurar todas sus propiedades sin warnings.
         GameObject fx = new GameObject("HitVFX");
+        fx.SetActive(false);
         fx.transform.position = position;
         fx.transform.rotation = Quaternion.LookRotation(normal);
 
         ParticleSystem ps = fx.AddComponent<ParticleSystem>();
-        // Detener el sistema antes de modificarlo (AddComponent lo arranca automaticamente)
-        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 
         // Main
         var main = ps.main;
@@ -116,6 +117,8 @@ public static class BulletFactory
         light.intensity = 3f;
         light.range     = 2f;
 
+        // Ahora si activamos el GameObject y reproducimos manualmente
+        fx.SetActive(true);
         ps.Play();
         Object.Destroy(fx, 1f);
     }
