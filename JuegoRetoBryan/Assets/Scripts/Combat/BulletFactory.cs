@@ -1,13 +1,14 @@
 using UnityEngine;
 
 /// <summary>
-/// Fabrica balas en runtime sin necesidad de un Prefab externo.
-/// Placeholder visual: esfera amarilla pequena. Sustituir mas adelante
-/// cuando se tenga un asset (sprite/modelo) definitivo.
+/// Fabrica balas y efectos de impacto en runtime, sin necesidad de Prefabs.
+/// Placeholder visual: esfera amarilla emisiva + burst de particulas en hit.
+/// Sustituir mas adelante por assets definitivos.
 /// </summary>
 public static class BulletFactory
 {
     private static Material _cachedMat;
+    private static Material _cachedHitMat;
 
     public static GameObject Create(Vector3 origin, Vector3 direction, float damage, float life)
     {
@@ -41,5 +42,74 @@ public static class BulletFactory
         p.Lifetime = life;
 
         return bullet;
+    }
+
+    /// <summary>
+    /// Crea un VFX de impacto procedural en la posicion dada.
+    /// Burst de particulas naranjas con luz puntual breve.
+    /// </summary>
+    public static void SpawnHitVFX(Vector3 position, Vector3 normal)
+    {
+        GameObject fx = new GameObject("HitVFX");
+        fx.transform.position = position;
+        fx.transform.rotation = Quaternion.LookRotation(normal);
+
+        ParticleSystem ps = fx.AddComponent<ParticleSystem>();
+
+        // Main
+        var main = ps.main;
+        main.duration         = 0.3f;
+        main.loop             = false;
+        main.startLifetime    = 0.4f;
+        main.startSpeed       = 4f;
+        main.startSize        = new ParticleSystem.MinMaxCurve(0.05f, 0.15f);
+        main.startColor       = new ParticleSystem.MinMaxGradient(
+            new Color(1f, 0.5f, 0f), new Color(1f, 0.9f, 0.2f));
+        main.gravityModifier  = 0.5f;
+
+        // Emission: burst de 25 particulas instantaneas
+        var emission = ps.emission;
+        emission.rateOverTime = 0;
+        emission.SetBursts(new ParticleSystem.Burst[] {
+            new ParticleSystem.Burst(0f, 25)
+        });
+
+        // Shape: cono que apunta hacia la normal de la superficie
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Cone;
+        shape.angle     = 35f;
+        shape.radius    = 0.05f;
+
+        // Color over lifetime: fade out
+        var colorOverLifetime = ps.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        Gradient grad = new Gradient();
+        grad.SetKeys(
+            new[] { new GradientColorKey(new Color(1f, 0.7f, 0.1f), 0f),
+                    new GradientColorKey(new Color(1f, 0.3f, 0f),   1f) },
+            new[] { new GradientAlphaKey(1f, 0f),
+                    new GradientAlphaKey(0f, 1f) }
+        );
+        colorOverLifetime.color = new ParticleSystem.MinMaxGradient(grad);
+
+        // Renderer con material emisivo
+        ParticleSystemRenderer r = fx.GetComponent<ParticleSystemRenderer>();
+        if (_cachedHitMat == null)
+        {
+            _cachedHitMat = new Material(Shader.Find("Particles/Standard Unlit"));
+            _cachedHitMat.color = new Color(1f, 0.6f, 0f);
+        }
+        r.material = _cachedHitMat;
+
+        // Luz puntual breve para destacar el impacto
+        GameObject lightGO = new GameObject("HitLight");
+        lightGO.transform.SetParent(fx.transform, false);
+        Light light = lightGO.AddComponent<Light>();
+        light.color     = new Color(1f, 0.6f, 0f);
+        light.intensity = 3f;
+        light.range     = 2f;
+
+        ps.Play();
+        Object.Destroy(fx, 1f);
     }
 }
