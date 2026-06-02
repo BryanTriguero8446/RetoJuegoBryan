@@ -7,16 +7,17 @@ TagManager:
   - Player
   - Enemy
   - Ground
+  - Target
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  -
+  - 
   - Water
   - UI
-  - Player
-  - Ground
-  - Enemy
+  - 
+  - 
+  - 
   - 
   - 
   - 

@@ -1,9 +1,8 @@
 using UnityEngine;
-using UnityEngine.AI;
 
 /// <summary>
-/// Salud del enemigo. Implementa IDamageable igual que PlayerHealth,
-/// demostrando la reutilizacion del sistema de dano a traves de la interfaz.
+/// Salud del enemigo. Implementa IDamageable para reutilizar el sistema
+/// de dano a traves de la interfaz, igual que PlayerHealth y TargetDummy.
 /// </summary>
 public class EnemyHealth : MonoBehaviour, IDamageable
 {
@@ -41,13 +40,6 @@ public class EnemyHealth : MonoBehaviour, IDamageable
 
         _isDead = true;
         OnDeath?.Invoke();
-
-        // Desactiva la IA y el agente de navegacion antes de destruir
-        if (TryGetComponent<EnemyAI>(out var ai))
-            ai.enabled = false;
-
-        if (TryGetComponent<NavMeshAgent>(out var agent))
-            agent.enabled = false;
 
         Destroy(gameObject, 2f);
     }
