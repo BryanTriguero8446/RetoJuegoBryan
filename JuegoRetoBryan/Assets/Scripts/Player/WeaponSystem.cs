@@ -1,67 +1,88 @@
-using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// Sistema de disparo con Physics.Raycast, gestion de municion y recarga.
-/// Asigna hitEffectPrefab con un ParticleSystem para VFX en el punto de impacto.
+/// Sistema de combate del jugador:
+///   - Dispara proyectiles fisicos (Rigidbody) hacia arriba (Vector3.up).
+///   - Cargador de 6 balas. Al llegar a 0, NO dispara hasta presionar R.
+///   - Lanza eventos para que la UI se actualice sin acoplamiento directo.
+///
+/// Conecta este script al Player. Para visualizar el balanceo de la espada
+/// se dispara un trigger en el Animator ("Attack") en cada disparo.
 /// </summary>
 public class WeaponSystem : MonoBehaviour
 {
-    [Header("Disparo")]
-    [SerializeField] private float damage      = 25f;
-    [SerializeField] private float range       = 100f;
-    [SerializeField] private float fireRate    = 2f;   // disparos por segundo
-    [SerializeField] private LayerMask shootMask = ~0; // todo por defecto
+    [Header("Cargador")]
+    [SerializeField] private int   maxAmmo  = 6;          // capacidad maxima
 
-    [Header("Municion")]
-    [SerializeField] private int   maxAmmo    = 12;
-    [SerializeField] private float reloadTime = 1.5f;
+    [Header("Proyectil")]
+    [SerializeField] private float damage        = 25f;
+    [SerializeField] private float bulletSpeed   = 20f;   // m/s
+    [SerializeField] private float bulletLife    = 3f;    // segundos antes de auto-destruir
+    [SerializeField] private float fireRate      = 3f;    // disparos por segundo
 
-    [Header("VFX")]
-    [SerializeField] private GameObject hitEffectPrefab;
-    [SerializeField] private float      hitEffectDuration = 1f;
+    [Header("Origen y direccion")]
+    [Tooltip("Punto de origen del disparo. Si esta vacio se usa la posicion del Player + 1m de altura.")]
+    [SerializeField] private Transform  muzzlePoint;
+    [Tooltip("Direccion del disparo. Por defecto VERTICAL hacia arriba.")]
+    [SerializeField] private Vector3    shootDirection = Vector3.up;
+
+    [Header("VFX (opcional)")]
+    [SerializeField] private GameObject muzzleFlashPrefab;
 
     public int  CurrentAmmo  { get; private set; }
     public int  MaxAmmo      => maxAmmo;
     public bool IsReloading  { get; private set; }
+    public bool HasAmmo      => CurrentAmmo > 0;
 
-    // Eventos para desacoplar la UI de la logica de arma
+    // Eventos para desacoplar de la UI / animator / SFX
     public event System.Action<int, int> OnAmmoChanged;
+    public event System.Action           OnShoot;
     public event System.Action           OnReloadStart;
     public event System.Action           OnReloadEnd;
-    public event System.Action           OnShoot;
+    public event System.Action           OnEmpty;
 
-    private float  _nextFireTime;
-    private Camera _cam;
+    private float    _nextFireTime;
+    private Animator _animator;
+    private static readonly int AttackHash = Animator.StringToHash("Attack");
 
     private void Awake()
     {
-        _cam        = Camera.main;
         CurrentAmmo = maxAmmo;
+        _animator   = GetComponent<Animator>();
+    }
 
-        if (_cam == null)
-            Debug.LogError("[WeaponSystem] No se encontró Main Camera.");
+    private void Start()
+    {
+        OnAmmoChanged?.Invoke(CurrentAmmo, maxAmmo);
     }
 
     private void Update()
     {
-        if (Input.GetButton("Fire1") && !IsReloading)
-            TryShoot();
-
+        // Recarga manual: solo con R, nunca automatica
         if (Input.GetKeyDown(KeyCode.R) && !IsReloading && CurrentAmmo < maxAmmo)
-            StartCoroutine(Reload());
+        {
+            Reload();
+            return;
+        }
+
+        // Disparo (Click izquierdo o Fire1)
+        if (Input.GetButtonDown("Fire1"))
+            TryShoot();
     }
 
     private void TryShoot()
     {
-        if (CurrentAmmo <= 0)
-        {
-            StartCoroutine(Reload());
+        if (IsReloading)
             return;
-        }
 
         if (Time.time < _nextFireTime)
             return;
+
+        if (!HasAmmo)
+        {
+            OnEmpty?.Invoke();
+            return; // sin balas: no dispara, esperar R
+        }
 
         _nextFireTime = Time.time + 1f / fireRate;
         Shoot();
@@ -73,38 +94,52 @@ public class WeaponSystem : MonoBehaviour
         OnAmmoChanged?.Invoke(CurrentAmmo, maxAmmo);
         OnShoot?.Invoke();
 
-        // Rayo desde el centro exacto de la pantalla
-        Ray ray = _cam.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f));
+        // Trigger animacion de ataque (balanceo de espada)
+        if (_animator != null && HasAttackParam())
+            _animator.SetTrigger(AttackHash);
 
-        if (Physics.Raycast(ray, out RaycastHit hit, range, shootMask))
+        // Crear y lanzar la bala
+        Vector3 origin = GetMuzzlePosition();
+        Vector3 dir    = shootDirection.normalized;
+
+        GameObject bullet = BulletFactory.Create(origin, dir, damage, bulletLife);
+
+        if (bullet.TryGetComponent<Rigidbody>(out var rb))
+            rb.velocity = dir * bulletSpeed;
+
+        // VFX en el cano
+        if (muzzleFlashPrefab != null)
         {
-            SpawnHitEffect(hit.point, hit.normal);
-
-            // El sistema de dano usa IDamageable para no depender de tipos concretos
-            if (hit.collider.TryGetComponent<IDamageable>(out var target))
-                target.TakeDamage(damage);
+            GameObject fx = Instantiate(muzzleFlashPrefab, origin, Quaternion.LookRotation(dir));
+            Destroy(fx, 0.5f);
         }
     }
 
-    private void SpawnHitEffect(Vector3 position, Vector3 normal)
-    {
-        if (hitEffectPrefab == null)
-            return;
-
-        GameObject fx = Instantiate(hitEffectPrefab, position, Quaternion.LookRotation(normal));
-        Destroy(fx, hitEffectDuration);
-    }
-
-    private IEnumerator Reload()
+    /// <summary>Recarga inmediata: la animacion / espera se omiten para feedback rapido.</summary>
+    private void Reload()
     {
         IsReloading = true;
         OnReloadStart?.Invoke();
 
-        yield return new WaitForSeconds(reloadTime);
-
         CurrentAmmo = maxAmmo;
-        IsReloading = false;
         OnAmmoChanged?.Invoke(CurrentAmmo, maxAmmo);
+
+        IsReloading = false;
         OnReloadEnd?.Invoke();
+    }
+
+    private Vector3 GetMuzzlePosition()
+    {
+        if (muzzlePoint != null)
+            return muzzlePoint.position;
+
+        return transform.position + Vector3.up * 1.5f;
+    }
+
+    private bool HasAttackParam()
+    {
+        foreach (var p in _animator.parameters)
+            if (p.nameHash == AttackHash) return true;
+        return false;
     }
 }

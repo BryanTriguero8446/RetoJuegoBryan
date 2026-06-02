@@ -48,6 +48,7 @@ public class AnimatorSetup
         AddParameter(controller, "Speed", AnimatorControllerParameterType.Float);
         AddParameter(controller, "IsGrounded", AnimatorControllerParameterType.Bool);
         AddParameter(controller, "Jump", AnimatorControllerParameterType.Trigger);
+        AddParameter(controller, "Attack", AnimatorControllerParameterType.Trigger);
 
         // Obtener root state machine
         var rootStateMachine = controller.layers[0].stateMachine;

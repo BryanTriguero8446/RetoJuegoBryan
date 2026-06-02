@@ -14,6 +14,7 @@ public class HUDDisplay : MonoBehaviour
     private bool  _reloading;
     private float _hp;
     private float _maxHp;
+    private float _emptyMessageTimer;
 
     private GUIStyle _bigStyle;
     private GUIStyle _reloadStyle;
@@ -32,6 +33,7 @@ public class HUDDisplay : MonoBehaviour
             weapon.OnAmmoChanged += OnAmmoChanged;
             weapon.OnReloadStart += () => _reloading = true;
             weapon.OnReloadEnd   += () => _reloading = false;
+            weapon.OnEmpty       += OnAmmoEmpty;
         }
 
         if (health != null)
@@ -52,6 +54,17 @@ public class HUDDisplay : MonoBehaviour
     {
         _hp = current;
         _maxHp = max;
+    }
+
+    private void OnAmmoEmpty()
+    {
+        _emptyMessageTimer = 1.5f;
+    }
+
+    private void Update()
+    {
+        if (_emptyMessageTimer > 0f)
+            _emptyMessageTimer -= Time.deltaTime;
     }
 
     private void OnGUI()
@@ -85,9 +98,15 @@ public class HUDDisplay : MonoBehaviour
         GUI.DrawTexture(new Rect(10, Screen.height - 100, 250, 90), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        // Munición (abajo izquierda)
+        // Munición (abajo izquierda) - cambia a rojo si esta vacia
+        GUIStyle ammoStyle = _bigStyle;
+        if (_ammo == 0)
+        {
+            ammoStyle = new GUIStyle(_bigStyle);
+            ammoStyle.normal.textColor = Color.red;
+        }
         GUI.Label(new Rect(25, Screen.height - 90, 240, 40),
-            $"MUNICIÓN: {_ammo} / {_maxAmmo}", _bigStyle);
+            $"BALAS: {_ammo} / {_maxAmmo}", ammoStyle);
 
         // Barra de salud
         DrawHealthBar();
@@ -100,6 +119,18 @@ public class HUDDisplay : MonoBehaviour
             GUI.color = Color.white;
             GUI.Label(new Rect(Screen.width / 2 - 150, Screen.height / 2 - 25, 300, 60),
                 "RECARGANDO...", _reloadStyle);
+        }
+
+        // Mensaje "SIN BALAS - Presiona R" cuando se intenta disparar vacio
+        if (_emptyMessageTimer > 0f || (_ammo == 0 && !_reloading))
+        {
+            GUI.color = new Color(0f, 0f, 0f, 0.7f);
+            GUI.DrawTexture(new Rect(Screen.width / 2 - 200, Screen.height / 2 + 50, 400, 50), Texture2D.whiteTexture);
+            GUI.color = Color.white;
+            GUIStyle emptyStyle = new GUIStyle(_reloadStyle);
+            emptyStyle.normal.textColor = Color.red;
+            GUI.Label(new Rect(Screen.width / 2 - 200, Screen.height / 2 + 55, 400, 50),
+                "SIN BALAS - Presiona R", emptyStyle);
         }
 
         // Mira / Crosshair

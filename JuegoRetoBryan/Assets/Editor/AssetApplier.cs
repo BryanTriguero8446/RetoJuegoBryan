@@ -13,11 +13,8 @@ public class AssetApplier
     private const string PLAYER_MODEL_PATH   = "Assets/Models/FBX_Player/Warrior.fbx";
     private const string PLAYER_TEXTURE_PATH = "Assets/Texture/TexturesPlayer/Warrior_Texture.png";
 
-    private const string PISTOL_MODEL_PATH   = "Assets/Models/FBX_Pistol.fbx";
-    private const string PISTOL_DIFF_PATH    = "Assets/Texture/TexturesPistol/service_pistol_diff_2k.jpg";
-    private const string PISTOL_METAL_PATH   = "Assets/Texture/TexturesPistol/service_pistol_metal_2k.exr";
-    private const string PISTOL_NORMAL_PATH  = "Assets/Texture/TexturesPistol/service_pistol_nor_gl_2k.exr";
-    private const string PISTOL_ROUGH_PATH   = "Assets/Texture/TexturesPistol/service_pistol_rough_2k.exr";
+    private const string SWORD_MODEL_PATH   = "Assets/Models/FBX_Player/Only Weapons/Warrior_Sword.fbx";
+    private const string SWORD_TEXTURE_PATH = "Assets/Texture/TexturesPlayer/Warrior_Sword_Texture.png";
 
     private const string TERRAIN_MODEL_PATH  = "Assets/Models/rocky_terrain_02_2k.fbx";
 
@@ -92,42 +89,66 @@ public class AssetApplier
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player == null) return;
 
-        // Buscar la mano derecha del Warrior dentro de la jerarquia de huesos
         Transform handBone = FindHandBone(player.transform);
+        RemoveOldWeapon(player.transform);
 
-        // Eliminar pistola anterior (este hijo puede estar en el Player o en la mano)
-        RemoveOldPistol(player.transform);
-
-        GameObject pistolPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PISTOL_MODEL_PATH);
-        if (pistolPrefab == null)
+        GameObject swordPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SWORD_MODEL_PATH);
+        if (swordPrefab == null)
         {
-            Debug.LogError($"[AssetApplier] No se encontró {PISTOL_MODEL_PATH}");
+            Debug.LogError($"[AssetApplier] No se encontró {SWORD_MODEL_PATH}");
             return;
         }
 
-        GameObject pistol = (GameObject)PrefabUtility.InstantiatePrefab(pistolPrefab);
-        pistol.name = "Pistol";
+        GameObject sword = (GameObject)PrefabUtility.InstantiatePrefab(swordPrefab);
+        sword.name = "Weapon";
 
         if (handBone != null)
         {
-            // El arma se hace hija de la mano: sigue la animación automáticamente
-            pistol.transform.SetParent(handBone, false);
-            pistol.transform.localPosition = new Vector3(0f, 0.05f, 0.05f);
-            pistol.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
-            pistol.transform.localScale    = Vector3.one * 0.5f;
-            Debug.Log($"[AssetApplier] Pistola enganchada al hueso: {handBone.name}");
+            sword.transform.SetParent(handBone, false);
+            sword.transform.localPosition = new Vector3(0f, 0.05f, 0f);
+            sword.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
+            sword.transform.localScale    = Vector3.one;
+            Debug.Log($"[AssetApplier] Espada enganchada al hueso: {handBone.name}");
         }
         else
         {
-            // Fallback si no se encuentra el bone
-            pistol.transform.SetParent(player.transform, false);
-            pistol.transform.localPosition = new Vector3(0.3f, 0.5f, 0.5f);
-            pistol.transform.localScale    = Vector3.one * 0.3f;
-            Debug.LogWarning("[AssetApplier] No se encontró bone de mano. Pistola anclada al Player.");
+            sword.transform.SetParent(player.transform, false);
+            sword.transform.localPosition = new Vector3(0.3f, 1f, 0.5f);
+            Debug.LogWarning("[AssetApplier] No se encontró bone de mano. Espada anclada al Player.");
         }
 
-        Material pistolMat = CreatePistolMaterial();
-        ApplyMaterialToRenderers(pistol, pistolMat);
+        // Crear MuzzlePoint en la punta del arma (origen del disparo vertical)
+        GameObject muzzle = new GameObject("MuzzlePoint");
+        muzzle.transform.SetParent(sword.transform, false);
+        muzzle.transform.localPosition = new Vector3(0f, 1f, 0f); // punta del arma
+
+        // Asignar MuzzlePoint al WeaponSystem del Player
+        WeaponSystem weapon = player.GetComponent<WeaponSystem>();
+        if (weapon != null)
+        {
+            SerializedObject so = new SerializedObject(weapon);
+            so.FindProperty("muzzlePoint").objectReferenceValue = muzzle.transform;
+            so.ApplyModifiedProperties();
+        }
+
+        // Material con la textura del arma
+        ApplyTextureToModel(sword, SWORD_TEXTURE_PATH, "Sword_Material", true);
+    }
+
+    private static void RemoveOldWeapon(Transform root)
+    {
+        string[] oldNames = { "Pistol", "Weapon", "Sword" };
+        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+        {
+            foreach (string n in oldNames)
+            {
+                if (t.name == n)
+                {
+                    Object.DestroyImmediate(t.gameObject);
+                    break;
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -163,17 +184,6 @@ public class AssetApplier
         return null;
     }
 
-    private static void RemoveOldPistol(Transform root)
-    {
-        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
-        {
-            if (t.name == "Pistol")
-            {
-                Object.DestroyImmediate(t.gameObject);
-                return;
-            }
-        }
-    }
 
     private static void ApplyGroundModel()
     {
@@ -251,43 +261,4 @@ public class AssetApplier
             mr.sharedMaterial = mat;
     }
 
-    /// <summary>
-    /// Crea material PBR completo para la pistola con sus 4 texturas (Albedo + Metallic + Normal + Roughness).
-    /// </summary>
-    private static Material CreatePistolMaterial()
-    {
-        Material mat = new Material(Shader.Find("Standard"));
-
-        Texture2D diff   = AssetDatabase.LoadAssetAtPath<Texture2D>(PISTOL_DIFF_PATH);
-        Texture2D metal  = AssetDatabase.LoadAssetAtPath<Texture2D>(PISTOL_METAL_PATH);
-        Texture2D normal = AssetDatabase.LoadAssetAtPath<Texture2D>(PISTOL_NORMAL_PATH);
-
-        if (diff != null)   mat.SetTexture("_MainTex", diff);
-        if (metal != null)  mat.SetTexture("_MetallicGlossMap", metal);
-
-        // El normal map debe marcarse como tal antes de asignarse
-        if (normal != null)
-        {
-            MarkAsNormalMap(PISTOL_NORMAL_PATH);
-            mat.SetTexture("_BumpMap", normal);
-            mat.EnableKeyword("_NORMALMAP");
-        }
-
-        mat.SetFloat("_Metallic", 0.85f);
-        mat.SetFloat("_Glossiness", 0.6f);
-
-        string matPath = $"{MATERIALS_FOLDER}/Pistol_PBR.mat";
-        AssetDatabase.CreateAsset(mat, matPath);
-        return AssetDatabase.LoadAssetAtPath<Material>(matPath);
-    }
-
-    private static void MarkAsNormalMap(string path)
-    {
-        TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        if (importer != null && importer.textureType != TextureImporterType.NormalMap)
-        {
-            importer.textureType = TextureImporterType.NormalMap;
-            importer.SaveAndReimport();
-        }
-    }
 }
