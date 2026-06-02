@@ -18,7 +18,7 @@ public class PlayerMovement : MonoBehaviour
 
     public PlayerState CurrentState { get; private set; } = PlayerState.Idle;
     public float Speed { get; private set; }
-    public bool IsGrounded => _controller.isGrounded;
+    public bool IsGrounded => _controller != null && _controller.isGrounded;
 
     private CharacterController _controller;
     private Vector3 _velocity;

@@ -26,8 +26,13 @@ public class PlayerAnimator : MonoBehaviour
 
         if (_animator == null || _movement == null)
             enabled = false;
+    }
 
-        _wasGrounded = _movement.IsGrounded;
+    private void Start()
+    {
+        // Start() corre despues de todos los Awake(), asi que _controller ya existe
+        if (_movement != null)
+            _wasGrounded = _movement.IsGrounded;
     }
 
     private void Update()
