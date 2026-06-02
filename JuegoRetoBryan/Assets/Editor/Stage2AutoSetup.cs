@@ -53,6 +53,9 @@ public class Stage2AutoSetup
         if (player.GetComponent<HUDDisplay>() == null)
             player.AddComponent<HUDDisplay>();
 
+        if (player.GetComponent<ArmShootAnimation>() == null)
+            player.AddComponent<ArmShootAnimation>();
+
         // Paso 5: Crear Hit Effect Prefab
         CreateHitEffectAndAssign(player);
 

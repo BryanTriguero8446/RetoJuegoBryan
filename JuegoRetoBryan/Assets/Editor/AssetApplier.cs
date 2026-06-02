@@ -117,10 +117,10 @@ public class AssetApplier
             Debug.LogWarning("[AssetApplier] No se encontró bone de mano. Espada anclada al Player.");
         }
 
-        // Crear MuzzlePoint en la punta del arma (origen del disparo vertical)
+        // Crear MuzzlePoint en la punta del arma (origen del disparo horizontal)
         GameObject muzzle = new GameObject("MuzzlePoint");
         muzzle.transform.SetParent(sword.transform, false);
-        muzzle.transform.localPosition = new Vector3(0f, 1f, 0f); // punta del arma
+        muzzle.transform.localPosition = new Vector3(0f, 0.5f, 0.3f); // adelante del arma
 
         // Asignar MuzzlePoint al WeaponSystem del Player
         WeaponSystem weapon = player.GetComponent<WeaponSystem>();

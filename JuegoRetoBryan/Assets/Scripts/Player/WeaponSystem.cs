@@ -23,8 +23,8 @@ public class WeaponSystem : MonoBehaviour
     [Header("Origen y direccion")]
     [Tooltip("Punto de origen del disparo. Si esta vacio se usa la posicion del Player + 1m de altura.")]
     [SerializeField] private Transform  muzzlePoint;
-    [Tooltip("Direccion del disparo. Por defecto VERTICAL hacia arriba.")]
-    [SerializeField] private Vector3    shootDirection = Vector3.up;
+    [Tooltip("Direccion del disparo en espacio LOCAL del Player. Vector3.forward = horizontal hacia adelante.")]
+    [SerializeField] private Vector3    shootDirection = Vector3.forward;
 
     [Header("VFX (opcional)")]
     [SerializeField] private GameObject muzzleFlashPrefab;
@@ -98,9 +98,9 @@ public class WeaponSystem : MonoBehaviour
         if (_animator != null && HasAttackParam())
             _animator.SetTrigger(AttackHash);
 
-        // Crear y lanzar la bala
+        // Crear y lanzar la bala (direccion convertida de LOCAL a WORLD space)
         Vector3 origin = GetMuzzlePosition();
-        Vector3 dir    = shootDirection.normalized;
+        Vector3 dir    = transform.TransformDirection(shootDirection.normalized);
 
         GameObject bullet = BulletFactory.Create(origin, dir, damage, bulletLife);
 
@@ -133,7 +133,8 @@ public class WeaponSystem : MonoBehaviour
         if (muzzlePoint != null)
             return muzzlePoint.position;
 
-        return transform.position + Vector3.up * 1.5f;
+        // Altura del pecho + 0.5m al frente para no chocar con el propio cuerpo
+        return transform.position + Vector3.up * 1.2f + transform.forward * 0.5f;
     }
 
     private bool HasAttackParam()
