@@ -28,7 +28,7 @@ public class WeaponSystem : MonoBehaviour
     [SerializeField] private bool       forceHorizontal = true;
 
     [Header("Debug")]
-    [SerializeField] private bool       drawDebugRay = true;
+    [SerializeField] private bool       drawDebugRay = false;
 
     [Header("VFX (opcional)")]
     [SerializeField] private GameObject muzzleFlashPrefab;

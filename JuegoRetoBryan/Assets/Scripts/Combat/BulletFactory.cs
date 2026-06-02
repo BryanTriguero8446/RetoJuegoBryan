@@ -50,14 +50,21 @@ public static class BulletFactory
     /// </summary>
     public static void SpawnHitVFX(Vector3 position, Vector3 normal)
     {
+        // Si la normal viene en cero, usar arriba como fallback
+        if (normal == Vector3.zero)
+            normal = Vector3.up;
+
         GameObject fx = new GameObject("HitVFX");
         fx.transform.position = position;
         fx.transform.rotation = Quaternion.LookRotation(normal);
 
         ParticleSystem ps = fx.AddComponent<ParticleSystem>();
+        // Detener el sistema antes de modificarlo (AddComponent lo arranca automaticamente)
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 
         // Main
         var main = ps.main;
+        main.playOnAwake = false;
         main.duration         = 0.3f;
         main.loop             = false;
         main.startLifetime    = 0.4f;

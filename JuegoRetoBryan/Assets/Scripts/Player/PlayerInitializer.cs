@@ -59,14 +59,5 @@ public class PlayerInitializer : MonoBehaviour
             gameObject.AddComponent<PlayerHealth>();
         }
 
-        // Validar cámara en PlayerMovement
-        if (movement.GetType().GetProperty("CurrentState") != null)
-        {
-            Transform cameraTransform = Camera.main?.transform;
-            if (cameraTransform != null)
-                Debug.Log("[PlayerInitializer] Cámara auto-detectada correctamente.");
-        }
-
-        Debug.Log("[PlayerInitializer] ✓ Player inicializado correctamente para Etapa 2.");
     }
 }
