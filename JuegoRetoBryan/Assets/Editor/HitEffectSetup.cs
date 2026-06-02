@@ -1,5 +1,6 @@
 using UnityEditor;
 using UnityEngine;
+using UnityEditor.Animations;
 
 /// <summary>
 /// Crea un Hit Effect Prefab funcional para el WeaponSystem.
@@ -60,7 +61,7 @@ public class HitEffectSetup
             so.ApplyModifiedProperties();
         }
 
-        DestroyImmediate(hitEffect);
+        Object.DestroyImmediate(hitEffect);
 
         EditorUtility.DisplayDialog("Éxito", "Hit Effect Prefab creado en Assets/Prefabs/\n\nYa está asignado a WeaponSystem.", "OK");
     }

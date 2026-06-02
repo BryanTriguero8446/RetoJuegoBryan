@@ -92,10 +92,11 @@ public class AssetApplier
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player == null) return;
 
-        // Eliminar arma anterior si existe
-        Transform existingPistol = player.transform.Find("Pistol");
-        if (existingPistol != null)
-            Object.DestroyImmediate(existingPistol.gameObject);
+        // Buscar la mano derecha del Warrior dentro de la jerarquia de huesos
+        Transform handBone = FindHandBone(player.transform);
+
+        // Eliminar pistola anterior (este hijo puede estar en el Player o en la mano)
+        RemoveOldPistol(player.transform);
 
         GameObject pistolPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PISTOL_MODEL_PATH);
         if (pistolPrefab == null)
@@ -106,16 +107,72 @@ public class AssetApplier
 
         GameObject pistol = (GameObject)PrefabUtility.InstantiatePrefab(pistolPrefab);
         pistol.name = "Pistol";
-        pistol.transform.SetParent(player.transform, false);
-        pistol.transform.localPosition = new Vector3(0.3f, 0.5f, 0.5f); // a la altura de la mano derecha
-        pistol.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
-        pistol.transform.localScale = Vector3.one * 0.3f; // escalar a tamaño razonable
 
-        // Crear material PBR con todas las texturas de la pistola
+        if (handBone != null)
+        {
+            // El arma se hace hija de la mano: sigue la animación automáticamente
+            pistol.transform.SetParent(handBone, false);
+            pistol.transform.localPosition = new Vector3(0f, 0.05f, 0.05f);
+            pistol.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            pistol.transform.localScale    = Vector3.one * 0.5f;
+            Debug.Log($"[AssetApplier] Pistola enganchada al hueso: {handBone.name}");
+        }
+        else
+        {
+            // Fallback si no se encuentra el bone
+            pistol.transform.SetParent(player.transform, false);
+            pistol.transform.localPosition = new Vector3(0.3f, 0.5f, 0.5f);
+            pistol.transform.localScale    = Vector3.one * 0.3f;
+            Debug.LogWarning("[AssetApplier] No se encontró bone de mano. Pistola anclada al Player.");
+        }
+
         Material pistolMat = CreatePistolMaterial();
         ApplyMaterialToRenderers(pistol, pistolMat);
+    }
 
-        Debug.Log("[AssetApplier] Pistola con texturas PBR aplicada al Player.");
+    /// <summary>
+    /// Busca recursivamente un hueso cuyo nombre indique mano derecha.
+    /// Soporta multiples convenciones: Hand_R, RightHand, hand.R, etc.
+    /// </summary>
+    private static Transform FindHandBone(Transform root)
+    {
+        string[] candidates = {
+            "RightHand", "Right Hand", "Hand_R", "hand_r", "hand.R", "Hand.R",
+            "mixamorig:RightHand", "Bip01 R Hand", "R_Hand", "Bone_Hand_R",
+            "Hand_R_end", "wrist.R"
+        };
+
+        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+        {
+            string n = t.name;
+            foreach (string c in candidates)
+            {
+                if (n.Equals(c, System.StringComparison.OrdinalIgnoreCase))
+                    return t;
+            }
+        }
+
+        // Segundo intento: contiene "hand" + "r"
+        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+        {
+            string n = t.name.ToLower();
+            if (n.Contains("hand") && (n.Contains("r") || n.EndsWith("_r")))
+                return t;
+        }
+
+        return null;
+    }
+
+    private static void RemoveOldPistol(Transform root)
+    {
+        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (t.name == "Pistol")
+            {
+                Object.DestroyImmediate(t.gameObject);
+                return;
+            }
+        }
     }
 
     private static void ApplyGroundModel()

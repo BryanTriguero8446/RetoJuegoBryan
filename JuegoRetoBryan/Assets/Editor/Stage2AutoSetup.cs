@@ -1,4 +1,6 @@
 using UnityEditor;
+using UnityEditor.Animations;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 /// <summary>
@@ -47,6 +49,9 @@ public class Stage2AutoSetup
 
         if (player.GetComponent<PlayerInitializer>() == null)
             player.AddComponent<PlayerInitializer>();
+
+        if (player.GetComponent<HUDDisplay>() == null)
+            player.AddComponent<HUDDisplay>();
 
         // Paso 5: Crear Hit Effect Prefab
         CreateHitEffectAndAssign(player);
@@ -127,7 +132,7 @@ public class Stage2AutoSetup
 
             PrefabUtility.SaveAsPrefabAsset(temp, prefabPath);
             hitEffectPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-            DestroyImmediate(temp);
+            Object.DestroyImmediate(temp);
 
             Debug.Log("[Stage2Setup] Hit Effect Prefab creado.");
         }
