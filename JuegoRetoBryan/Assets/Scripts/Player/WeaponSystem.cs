@@ -20,11 +20,15 @@ public class WeaponSystem : MonoBehaviour
     [SerializeField] private float bulletLife    = 3f;    // segundos antes de auto-destruir
     [SerializeField] private float fireRate      = 3f;    // disparos por segundo
 
-    [Header("Origen y direccion")]
-    [Tooltip("Punto de origen del disparo. Si esta vacio se usa la posicion del Player + 1m de altura.")]
+    [Header("Origen del disparo")]
+    [Tooltip("Punto de origen del disparo. Si esta vacio se usa la posicion del Player + 1.2m de altura.")]
     [SerializeField] private Transform  muzzlePoint;
-    [Tooltip("Direccion del disparo en espacio LOCAL del Player. Vector3.forward = horizontal hacia adelante.")]
-    [SerializeField] private Vector3    shootDirection = Vector3.forward;
+
+    [Tooltip("Si esta marcado, la direccion del disparo se aplana en Y (100% horizontal).")]
+    [SerializeField] private bool       forceHorizontal = true;
+
+    [Header("Debug")]
+    [SerializeField] private bool       drawDebugRay = true;
 
     [Header("VFX (opcional)")]
     [SerializeField] private GameObject muzzleFlashPrefab;
@@ -98,14 +102,29 @@ public class WeaponSystem : MonoBehaviour
         if (_animator != null && HasAttackParam())
             _animator.SetTrigger(AttackHash);
 
-        // Crear y lanzar la bala (direccion convertida de LOCAL a WORLD space)
+        // Direccion 100% HORIZONTAL hacia donde mira el jugador
+        Vector3 dir = transform.forward;
+        if (forceHorizontal)
+        {
+            dir.y = 0f;                // aplastar componente vertical
+            dir.Normalize();           // re-normalizar tras aplastar
+        }
+
         Vector3 origin = GetMuzzlePosition();
-        Vector3 dir    = transform.TransformDirection(shootDirection.normalized);
+
+        if (drawDebugRay)
+        {
+            Debug.DrawRay(origin, dir * 10f, Color.green, 1.5f);
+            Debug.Log($"[WeaponSystem] Disparo dir={dir} (y={dir.y:F3} debe ser 0)");
+        }
 
         GameObject bullet = BulletFactory.Create(origin, dir, damage, bulletLife);
 
         if (bullet.TryGetComponent<Rigidbody>(out var rb))
-            rb.velocity = dir * bulletSpeed;
+        {
+            rb.useGravity = false;     // garantia: la bala no cae
+            rb.velocity   = dir * bulletSpeed;
+        }
 
         // VFX en el cano
         if (muzzleFlashPrefab != null)
@@ -142,5 +161,20 @@ public class WeaponSystem : MonoBehaviour
         foreach (var p in _animator.parameters)
             if (p.nameHash == AttackHash) return true;
         return false;
+    }
+
+    // Gizmo en el editor: dibuja una flecha verde indicando hacia donde sale la bala
+    private void OnDrawGizmosSelected()
+    {
+        Vector3 origin = muzzlePoint != null
+            ? muzzlePoint.position
+            : transform.position + Vector3.up * 1.2f + transform.forward * 0.5f;
+
+        Vector3 dir = transform.forward;
+        if (forceHorizontal) { dir.y = 0f; dir.Normalize(); }
+
+        Gizmos.color = Color.green;
+        Gizmos.DrawLine(origin, origin + dir * 5f);
+        Gizmos.DrawSphere(origin + dir * 5f, 0.15f);
     }
 }
