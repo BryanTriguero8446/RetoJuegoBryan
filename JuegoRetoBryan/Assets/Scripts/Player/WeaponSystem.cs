@@ -38,6 +38,9 @@ public class WeaponSystem : MonoBehaviour
     {
         _cam        = Camera.main;
         CurrentAmmo = maxAmmo;
+
+        if (_cam == null)
+            Debug.LogError("[WeaponSystem] No se encontró Main Camera.");
     }
 
     private void Update()

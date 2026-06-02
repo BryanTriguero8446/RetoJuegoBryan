@@ -23,11 +23,18 @@ public class PlayerAnimator : MonoBehaviour
     {
         _animator  = GetComponent<Animator>();
         _movement  = GetComponent<PlayerMovement>();
+
+        if (_animator == null || _movement == null)
+            enabled = false;
+
         _wasGrounded = _movement.IsGrounded;
     }
 
     private void Update()
     {
+        if (_animator == null || _movement == null)
+            return;
+
         // Blend Tree: interpola suavemente entre Idle y Run
         _animator.SetFloat(SpeedHash, _movement.Speed, 0.1f, Time.deltaTime);
         _animator.SetBool(IsGroundedHash, _movement.IsGrounded);
